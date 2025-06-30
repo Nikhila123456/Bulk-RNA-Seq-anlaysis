@@ -1,0 +1,65 @@
+#!/bin/bash
+#SBATCH -A pccr
+#SBATCH -t 48:00:00
+#SBATCH -N 1
+#SBATCH -n 30
+#SBATCH --job-name=P-MyC-CaP-3
+
+
+#SBATCH --error=%x-%J-%u.err
+#SBATCH --output=%x-%J-%u.out
+
+starts=$(date +"%s")
+start=$(date +"%r, %m-%d-%Y")
+
+module --force purge
+module load biocontainers
+module load star
+module load  samtools
+cd /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/MAPPING/
+
+
+mkdir P-MyC-CaP-3
+cd P-MyC-CaP-3
+
+############### ALIGNMENT_PARAMETERS #########
+# --runThreadN -> define the number of processors to be used
+# --runMode -> defines how star has to be run in this context: map the reads to the genome
+# --outSAMunmapped -> where do the unmapped reads go? in this case, we report them inside the alignment files themselves.
+#                    this ensures that the bitwise flags are set properly, and the reads can be retrieved at a later date
+# --outSAMattrIHstart -> this is a counter in the alignment that defines the number of hits a query has had. we set it to initialize from 0
+# --genomeDir -> path of the folder where we have the reference
+# --readFilesIn -> input files for the alignment
+# --readFilesCommand -> star by default doesn't know how to read compressed files, we pass a command like zcat, bzcat to let it know how to read compressed files
+# --twopassMode -> identifies junction when it runs first, and then uses it to accurately map the reads in the second pass
+# --outSAMtype -> we export the alignment in a bam file, which is sorted
+# --outFileNamePrefix -> what should the output be identifiable as?
+##############################################
+
+STAR --runThreadN 30 --runMode alignReads \
+ --outSAMunmapped Within --outSAMattrIHstart 0 --outFilterIntronMotifs RemoveNoncanonical  \
+--genomeDir /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/reference/ \
+--readFilesIn /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/1.QC/P-MyC-CaP-3_QC/P-MyC-CaP-3_1.trimmed.fastq.gz  /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/1.QC/P-MyC-CaP-3_QC/P-MyC-CaP-3_2.trimmed.fastq.gz  \
+--readFilesCommand zcat --twopassMode Basic --outSAMtype BAM SortedByCoordinate --outFileNamePrefix P-MyC-CaP-3. 
+
+
+############### ALIGNMENT INDEXING #########
+# the purpose is to create a index so that reads can be fetched randomly, imagine searching a topic in a reaaaally big book without knowing where it might be
+############################################
+samtools index -@ 30   P-MyC-CaP-3.Aligned.sortedByCoord.out.bam 
+
+
+
+ends=$(date +"%s")
+end=$(date +"%r, %m-%d-%Y")
+diff=$(($ends-$starts))
+hours=$(($diff / 3600))
+dif=$(($diff % 3600))
+minutes=$(($dif / 60))
+seconds=$(($dif % 60))
+printf "\n\t===========Time Stamp===========\n"
+printf "\tStart\t:$start\n\tEnd\t:$end\n\tTime\t:%02d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+printf "\t================================\n\n"
+
+sacct --jobs=$SLURM_JOBID --format=jobid,jobname,qos,nnodes,ncpu,maxrss,cputime,avecpu,elapsed
+
