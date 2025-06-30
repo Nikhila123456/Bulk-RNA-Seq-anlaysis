@@ -1,0 +1,1 @@
+Alignment using STAR aligner
