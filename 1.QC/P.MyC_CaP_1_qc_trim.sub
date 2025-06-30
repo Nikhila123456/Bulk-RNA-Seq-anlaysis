@@ -1,0 +1,70 @@
+#!/bin/bash
+#SBATCH -A scholar
+#SBATCH -t 2:00:00
+#SBATCH -N 1
+#SBATCH -n 30
+#SBATCH --job-name=P-MyC-CaP-1
+
+
+#SBATCH --error=%x-%J-%u.err
+#SBATCH --output=%x-%J-%u.out
+
+starts=$(date +"%s")
+start=$(date +"%r, %m-%d-%Y")
+
+module --force purge
+module load biocontainers
+module load fastp
+module load fastqc
+
+cd /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/1.QC/
+
+################ FASTQC #################
+# -t -> governs the number of threads, since we run it on two files, 
+#fastqc reads each file in a single thread
+# -o -> defines where the output of fastqc should be
+#########################################
+
+mkdir P-MyC-CaP-1_before
+
+fastqc \
+-t 2 \
+-o P-MyC-CaP-1_before /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/input/P-MyC-CaP-1_R1_001.fastq.gz \
+/depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/input/P-MyC-CaP-1_R2_001.fastq.gz
+
+################ FASTP ##################
+# --thread -> governs the number of threads to parallel-ly process the datasets
+# --in1/--in2 -> give the input files here
+# --length_required -> minimum read length to be output after passing through the QC
+# --out1/--out2 -> defines the output files for PE dataset
+# --qualified_quality_phred -> gives the phred score cutoff that 
+# we want the bases to have at a minimum
+# --detect_adapter_for_pe -> check if the PE dataset has any adapter contamination
+# --html -> generate a summary that is viewable in a web-browser
+#########################################
+
+
+fastp --thread 30 \
+--in1 /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/input/P-MyC-CaP-1_R1_001.fastq.gz -\
+-in2 /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/input/P-MyC-CaP-1_R2_001.fastq.gz \
+--out1 P-MyC-CaP-1_1.trimmed.fastq.gz --out2 P-MyC-CaP-1_2.trimmed.fastq.gz \
+--length_required  50 --qualified_quality_phred 30 \
+--detect_adapter_for_pe  \
+--html P-MyC-CaP-1.html  --json /dev/null
+
+mkdir P-MyC-CaP-1_after
+fastqc -t 2 -o P-MyC-CaP-1_after P-MyC-CaP-1_1.trimmed.fastq.gz P-MyC-CaP-1_2.trimmed.fastq.gz
+
+ends=$(date +"%s")
+end=$(date +"%r, %m-%d-%Y")
+diff=$(($ends-$starts))
+hours=$(($diff / 3600))
+dif=$(($diff % 3600))
+minutes=$(($dif / 60))
+seconds=$(($dif % 60))
+printf "\n\t===========Time Stamp===========\n"
+printf "\tStart\t:$start\n\tEnd\t:$end\n\tTime\t:%02d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+printf "\t================================\n\n"
+
+sacct --jobs=$SLURM_JOBID --format=jobid,jobname,qos,nnodes,ncpu,maxrss,cputime,avecpu,elapsed
+
