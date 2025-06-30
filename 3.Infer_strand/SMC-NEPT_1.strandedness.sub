@@ -1,0 +1,56 @@
+#!/bin/bash
+#SBATCH -A pccr
+#SBATCH -t 48:00:00
+#SBATCH -N 1
+#SBATCH -n 30
+#SBATCH --job-name=SMC-NEPT-1
+
+
+#SBATCH --error=%x-%J-%u.err
+#SBATCH --output=%x-%J-%u.out
+
+starts=$(date +"%s")
+start=$(date +"%r, %m-%d-%Y")
+
+module --force purge
+module load biocontainers
+module load rseqc
+
+cd /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/MAPPING/
+cd SMC-NEPT-1
+### runnning RSeQC's infer_experiment to determine strandedness of the data
+############### INFER_DATA_STRANDEDNESS #########
+# -i -> defines the input set of alignments, currently we subsample ~200k reads
+# -r -> what is the genome annotation to use? this takes the gene annotation and the strand of the gene to figure out the type of libraries prepared
+
+## General output guidelines:
+# Unstranded -> -s 0 in featureCounts
+## Fraction of reads explained by "1++,1--,2+-,2-+": 0.4903
+## Fraction of reads explained by "1+-,1-+,2++,2--": 0.4925
+
+# Fwd stranded -> -s 1 in featureCounts
+## Fraction of reads explained by "1++,1--,2+-,2-+": 0.9441
+## Fraction of reads explained by "1+-,1-+,2++,2--": 0.0487
+
+# Rev stranded -> -s 2 in featureCounts
+## Fraction of reads explained by "1++,1--,2+-,2-+": 0.0441
+## Fraction of reads explained by "1+-,1-+,2++,2--": 0.9487
+#################################################
+
+infer_experiment.py -i SMC-NEPT-1.Aligned.sortedByCoord.out.bam -r /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/annotations/refgene.bed > SMC-NEPT-1.infer_exp.txt 
+
+
+ends=$(date +"%s")
+end=$(date +"%r, %m-%d-%Y")
+diff=$(($ends-$starts))
+hours=$(($diff / 3600))
+dif=$(($diff % 3600))
+minutes=$(($dif / 60))
+seconds=$(($dif % 60))
+printf "\n\t===========Time Stamp===========\n"
+printf "\tStart\t:$start\n\tEnd\t:$end\n\tTime\t:%02d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+printf "\t================================\n\n"
+
+sacct --jobs=$SLURM_JOBID --format=jobid,jobname,qos,nnodes,ncpu,maxrss,cputime,avecpu,elapsed
+
+
