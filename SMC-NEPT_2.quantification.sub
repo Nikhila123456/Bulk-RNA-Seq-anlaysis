@@ -1,0 +1,56 @@
+#!/bin/bash
+#SBATCH -A pccr
+#SBATCH -t 2:00:00
+#SBATCH -N 1
+#SBATCH -n 30
+#SBATCH --job-name=SMC-NEPT-2
+
+
+#SBATCH --error=%x-%J-%u.err
+#SBATCH --output=%x-%J-%u.out
+
+starts=$(date +"%s")
+start=$(date +"%r, %m-%d-%Y")
+
+module --force purge
+module load biocontainers
+module load samtools
+module load  subread/2.0.1 
+
+cd /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/MAPPING/SMC-NEPT-2/
+
+###############QUANTIFICATION_PARAMETERS#########
+# using infer_exp to determine strandedness. we use featureCounts from the subread package to quantify gene
+
+# -T -> number of processors
+# -a -> provide annotation file here
+# -o -> provide outprefix
+# -t -> provide feature type to quantify for
+# -g -> attribute to assign the quantification for
+# -s -> specify strandedness here, 0 = unstranded, 1 = stranded and 2 = reverse
+# -p -> specify is data is paired end
+# -B -> quanity if both ends of the pairs are mapped
+###############################################
+
+featureCounts   -T 30 \
+-a /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/annotations/Mus_musculus.GRCm39.112.gtf \
+-o /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/COUNTS/SMC-NEPT-2.ct -s 0 -p -B \
+-t gene -g gene_id \
+SMC-NEPT-2.Aligned.sortedByCoord.out.bam
+
+cd /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/Output/COUNTS/
+grep -v "#" SMC-NEPT-2.ct | cut -f1,7- > SMC-NEPT-2.counts
+
+ends=$(date +"%s")
+end=$(date +"%r, %m-%d-%Y")
+diff=$(($ends-$starts))
+hours=$(($diff / 3600))
+dif=$(($diff % 3600))
+minutes=$(($dif / 60))
+seconds=$(($dif % 60))
+printf "\n\t===========Time Stamp===========\n"
+printf "\tStart\t:$start\n\tEnd\t:$end\n\tTime\t:%02d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+printf "\t================================\n\n"
+
+sacct --jobs=$SLURM_JOBID --format=jobid,jobname,qos,nnodes,ncpu,maxrss,cputime,avecpu,elapsed
+
