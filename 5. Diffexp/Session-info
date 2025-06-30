@@ -1,0 +1,8 @@
+Start interactive Job on Bell
+srun --x11 -A pccr    -N 1 -n 32 -t 100:00:00 --pty /bin/bash -I
+ 
+
+
+
+module load biocontainers
+ml r-scrnaseq/4.2.3-rstudio
