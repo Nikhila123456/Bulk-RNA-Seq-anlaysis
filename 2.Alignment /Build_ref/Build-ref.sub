@@ -1,0 +1,45 @@
+#!/bin/bash
+#SBATCH -A pccr
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH -n 120
+#SBATCH --job-name=build_ref
+#SBATCH --error=%x-%J-%u.err
+#SBATCH --output=%x-%J-%u.out
+
+starts=$(date +"%s")
+start=$(date +"%r, %m-%d-%Y")
+
+module --force purge
+module load biocontainers
+module load star/2.7.9a
+
+
+
+# Build Reference 
+
+################ Building a genomic reference #################
+# --runThreadN -> define the number of processors to be used
+# --runMode -> defines how star has to be run in this context: generate the reference
+# --genomeDir -> path of the folder where the fasta sequence for the genome resides
+# --genomeFastaFiles -> name of the sequence file
+################################################################
+
+STAR --runThreadN 20 --runMode genomeGenerate --genomeDir /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/reference/ --genomeFastaFiles /depot/tlratlif/data/Gada_data/2024_4_Gada_SMC_RNA_Bulk/30-994315926/reference/genome_ref.fa
+
+
+
+
+ends=$(date +"%s")
+end=$(date +"%r, %m-%d-%Y")
+diff=$(($ends-$starts))
+hours=$(($diff / 3600))
+dif=$(($diff % 3600))
+minutes=$(($dif / 60))
+seconds=$(($dif % 60))
+printf "\n\t===========Time Stamp===========\n"
+printf "\tStart\t:$start\n\tEnd\t:$end\n\tTime\t:%02d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+printf "\t================================\n\n"
+
+sacct --jobs=$SLURM_JOBID --format=jobid,jobname,qos,nnodes,ncpu,maxrss,cputime,avecpu,elapsed
+
